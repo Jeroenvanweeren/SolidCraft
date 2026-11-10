@@ -15,6 +15,33 @@ export SOLIDCRAFT_UPDATE_TOKEN="$(openssl rand -hex 32)"
 docker compose up -d --build
 ```
 
+## Published container images
+
+Releases are published to `ghcr.io/jeroenvanweeren/solidcraft-web`. To run a published version,
+choose its image tag and start Compose without building locally:
+
+```sh
+export SOLIDCRAFT_IMAGE_TAG=1.2.3
+docker compose pull
+docker compose up -d
+```
+
+Replace `1.2.3` with a published version; `latest` tracks the newest stable release. Each stable
+release also publishes `MAJOR.MINOR` and `MAJOR` tags. Pre-releases receive only their exact
+version tag and are marked as pre-releases on GitHub.
+
+To publish a release, push a SemVer tag beginning with `v`, for example `v1.2.3`. GitHub Actions
+runs the updater tests, downloads and verifies the SolidCraft web bundle, builds and pushes the
+image, then creates a GitHub Release with generated release notes. The workflow uses the repository's
+`GITHUB_TOKEN`; no registry password or email secret is needed. On the first successful publish,
+open the `solidcraft-web` package settings on GitHub and change its visibility to **Public** if
+you want unauthenticated pulls.
+
+```sh
+git tag -a v1.2.3 -m "Release v1.2.3"
+git push origin v1.2.3
+```
+
 Open `http://localhost:8080/`. For a remote deployment, put HTTPS in front of the container;
 SolidCraft needs a secure browser context to save designs. Do not expose the update endpoint over
 an untrusted plain-HTTP network.

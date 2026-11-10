@@ -1,8 +1,12 @@
 name: solidcraft-web-managed
 services:
   solidcraft:
-    build: .
-    image: solidcraft-web-managed:local
+    image: ghcr.io/jeroenvanweeren/solidcraft-web:${SOLIDCRAFT_IMAGE_TAG:-local}
+    pull_policy: missing
+    build:
+      context: .
+      args:
+        IMAGE_VERSION: ${SOLIDCRAFT_IMAGE_TAG:-local}
     ports:
       - "${SOLIDCRAFT_PORT:-8080}:8080"
     environment:

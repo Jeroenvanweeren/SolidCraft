@@ -1,0 +1,67 @@
+name: Container release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Test updater and prepare verified web bundle
+        env:
+          DATA_DIR: ${{ runner.temp }}/solidcraft-data
+        run: |
+          python3 -m unittest discover -s "SolidCraftWeb Docker" -v
+          mkdir -p "SolidCraftWeb Docker/.build/site"
+          PYTHONPATH="SolidCraftWeb Docker" python3 -c 'from updater import install; print(install("latest"))'
+          cp -a "$DATA_DIR/current/." "SolidCraftWeb Docker/.build/site/"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tags and metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/jeroenvanweeren/solidcraft-web
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ !contains(github.ref_name, '-') }}
+            type=semver,pattern={{major}},enable=${{ !contains(github.ref_name, '-') }}
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: "SolidCraftWeb Docker"
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            IMAGE_VERSION=${{ github.ref_name }}
+
+      - name: Create GitHub Release and notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes --prerelease
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+          fi

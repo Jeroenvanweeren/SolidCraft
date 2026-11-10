@@ -73,8 +73,6 @@ if [[ "$release_target" != releases/* ]]; then
     echo "Could not determine the installed SolidCraft release." >&2
     exit 1
 fi
-release_version="${release_target#releases/}"
-
 was_stopped=0
 restart_previous_container() {
     result=$?
@@ -91,8 +89,8 @@ docker compose stop solidcraft
 was_stopped=1
 
 echo "Rebuilding the container image..."
-docker compose build --build-arg "SOLIDCRAFT_RELEASE_VERSION=$release_version" solidcraft
-docker run --rm --entrypoint sh solidcraft-web-managed:local \
+docker compose build --build-arg "IMAGE_VERSION=${SOLIDCRAFT_IMAGE_TAG:-local}" solidcraft
+docker run --rm --entrypoint sh "ghcr.io/jeroenvanweeren/solidcraft-web:${SOLIDCRAFT_IMAGE_TAG:-local}" \
     -c 'test -s /opt/solidcraft/baked-release/index.html' || {
         echo "The rebuilt image does not contain the SolidCraft web bundle." >&2
         exit 1

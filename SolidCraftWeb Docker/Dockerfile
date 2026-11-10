@@ -9,8 +9,8 @@ COPY --chown=101:101 updater.py /app/updater.py
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chown=101:101 .build/site/ /opt/solidcraft/baked-release/
 
-ARG SOLIDCRAFT_RELEASE_VERSION=unknown
-LABEL org.opencontainers.image.version="${SOLIDCRAFT_RELEASE_VERSION}"
+ARG IMAGE_VERSION=local
+LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
 
 ENV PYTHONUNBUFFERED=1
 VOLUME ["/data"]
