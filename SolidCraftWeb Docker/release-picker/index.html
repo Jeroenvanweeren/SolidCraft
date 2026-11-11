@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#090d14">
+    <title>SolidCraft builds</title>
+    <link rel="stylesheet" href="/releases/styles.css">
+    <script src="/releases/app.js" defer></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="SolidCraft home">
+          <span class="brand-mark" aria-hidden="true">SC</span>
+          <span class="brand-name">SolidCraft</span>
+        </a>
+        <div class="topbar-right">
+          <a class="back-link" href="/">Open the web app <span aria-hidden="true">↗</span></a>
+          <span class="live-pill"><span class="live-dot"></span><span id="active-version">Checking live build</span></span>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="page-title">
+          <div class="hero-copy">
+            <p class="eyebrow"><span class="eyebrow-line"></span> BUILD LIBRARY</p>
+            <h1 id="page-title">Every build.<br><span>One click away.</span></h1>
+            <p class="hero-description">Browse every published SolidCraft web build, then choose exactly what this container serves.</p>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="orbit orbit-one"></div>
+            <div class="orbit orbit-two"></div>
+            <div class="art-core"><span>SC</span></div>
+            <span class="art-spark spark-one"></span>
+            <span class="art-spark spark-two"></span>
+            <span class="art-spark spark-three"></span>
+          </div>
+          <div class="hero-stats" aria-label="Release library summary">
+            <div class="stat"><strong id="total-count">--</strong><span>published builds</span></div>
+            <div class="stat-divider"></div>
+            <div class="stat"><strong id="type-count">--</strong><span>build channels</span></div>
+            <div class="stat-divider"></div>
+            <div class="stat"><strong>UTC</strong><span>dates, shown local</span></div>
+          </div>
+        </section>
+
+        <section class="library" aria-labelledby="library-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">RELEASES</p>
+              <h2 id="library-title">Choose a build</h2>
+            </div>
+            <p id="result-count" class="result-count" aria-live="polite">Loading release library…</p>
+          </div>
+
+          <div class="toolbar">
+            <label class="search-box">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.5 4.5"></path></svg>
+              <span class="visually-hidden">Search releases</span>
+              <input id="search" type="search" placeholder="Search versions, names, build types…" autocomplete="off">
+              <kbd>/</kbd>
+            </label>
+            <div class="filter-group" role="group" aria-label="Filter by build type">
+              <button class="filter-chip is-active" type="button" data-filter="all" aria-pressed="true">All <span id="count-all">0</span></button>
+              <button class="filter-chip" type="button" data-filter="stable" aria-pressed="false">Stable <span id="count-stable">0</span></button>
+              <button class="filter-chip" type="button" data-filter="release candidate" aria-pressed="false">RC <span id="count-rc">0</span></button>
+              <button class="filter-chip" type="button" data-filter="nightly" aria-pressed="false">Nightly <span id="count-nightly">0</span></button>
+              <button class="filter-chip" type="button" data-filter="other" aria-pressed="false">Other <span id="count-other">0</span></button>
+            </div>
+          </div>
+
+          <div id="load-error" class="load-error" role="alert" hidden></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col" aria-sort="none"><button class="sort-button" type="button" data-sort="name">Release <span class="sort-indicator"></span></button></th>
+                  <th scope="col" aria-sort="none"><button class="sort-button" type="button" data-sort="type">Build type <span class="sort-indicator"></span></button></th>
+                  <th scope="col" aria-sort="descending"><button class="sort-button" type="button" data-sort="published_at">Build date <span class="local-note">YOUR LOCAL TIME</span><span class="sort-indicator"></span></button></th>
+                  <th scope="col">Status</th>
+                  <th scope="col" aria-label="Select build"></th>
+                </tr>
+              </thead>
+              <tbody id="release-rows">
+                <tr class="placeholder-row"><td colspan="5"><span class="loader"></span>Fetching the release library…</td></tr>
+              </tbody>
+            </table>
+            <div id="empty-state" class="empty-state" hidden>
+              <span class="empty-icon" aria-hidden="true">⌕</span>
+              <strong>No builds found</strong>
+              <span>Try a different search or build type.</span>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>SolidCraft build selector</span>
+        <span>Release metadata is refreshed every few minutes.</span>
+      </footer>
+    </div>
+
+    <aside id="selection-bar" class="selection-bar" aria-live="polite" hidden>
+      <div class="selection-info">
+        <span class="selection-icon" aria-hidden="true">✓</span>
+        <div><span class="selection-label">SELECTED BUILD</span><strong id="selected-version">—</strong></div>
+      </div>
+      <div class="selection-action">
+        <span id="selection-hint" class="selection-hint">Choose a build to publish</span>
+        <button id="publish-button" class="publish-button" type="button" disabled>Publish selected build <span aria-hidden="true">→</span></button>
+      </div>
+    </aside>
+
+    <dialog id="publish-dialog" class="publish-dialog">
+      <form method="dialog" class="dialog-close-form"><button class="dialog-close" aria-label="Close dialog">×</button></form>
+      <p class="eyebrow">CHANGE LIVE BUILD</p>
+      <h2>Publish this build?</h2>
+      <p class="dialog-description">The web app served by this container will switch to:</p>
+      <div class="dialog-build"><span class="dialog-build-mark">SC</span><div><strong id="dialog-version"></strong><span id="dialog-type"></span></div></div>
+      <p class="dialog-note">This change is immediate and visible to everyone using this container.</p>
+      <div class="dialog-actions">
+        <button id="cancel-publish" class="cancel-button" type="button">Keep current build</button>
+        <button id="confirm-publish" class="publish-button" type="button">Publish build <span aria-hidden="true">→</span></button>
+      </div>
+      <p id="publish-error" class="publish-error" role="alert" hidden></p>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

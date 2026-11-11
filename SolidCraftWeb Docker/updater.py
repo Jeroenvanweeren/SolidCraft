@@ -14,6 +14,7 @@ import stat
 import subprocess
 import tempfile
 import threading
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, urlopen
@@ -28,6 +29,9 @@ MAX_ARCHIVE_FILES = 10000
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 RELEASES_DIR = DATA_DIR / "releases"
 UPDATE_LOCK = threading.Lock()
+RELEASES_CACHE_LOCK = threading.Lock()
+RELEASES_CACHE_TTL = 300
+RELEASES_CACHE = {"expires_at": 0, "builds": None}
 
 
 class UpdateError(Exception):
@@ -35,6 +39,8 @@ class UpdateError(Exception):
 
 
 def canonical_version(value):
+    if not isinstance(value, str):
+        raise UpdateError("version must be a string")
     match = VERSION_PATTERN.fullmatch(value)
     if not match:
         raise UpdateError("version must look like 0.30.1 or 0.31.0-rc.1")
@@ -172,6 +178,72 @@ def release_for(version):
     return resolved_version, assets[asset_name], assets["SHA256SUMS.txt"]
 
 
+def build_type(version, prerelease):
+    normalized = version.lower()
+    if "nightly" in normalized:
+        return "nightly"
+    if re.search(r"(?:^|[.-])rc(?:[.-]|$)", normalized):
+        return "release candidate"
+    if not prerelease:
+        return "stable"
+    for label in ("alpha", "beta"):
+        if re.search(rf"(?:^|[.-]){label}(?:[.-]|$)", normalized):
+            return label
+    return "pre-release"
+
+
+def load_release_builds():
+    builds = []
+    page = 1
+    while True:
+        releases = request_json(f"{REPOSITORY_API}/releases?per_page=100&page={page}")
+        if not isinstance(releases, list):
+            raise UpdateError("GitHub returned an invalid release list")
+        for release in releases:
+            if release.get("draft"):
+                continue
+            try:
+                version = canonical_version(release.get("tag_name", ""))
+            except UpdateError:
+                continue
+
+            asset_names = {asset.get("name") for asset in release.get("assets", [])}
+            published_at = release.get("published_at") or release.get("created_at")
+            if not published_at:
+                continue
+            builds.append(
+                {
+                    "version": version,
+                    "name": release.get("name") or version,
+                    "type": build_type(version, release.get("prerelease", False)),
+                    "published_at": published_at,
+                    "url": release.get("html_url", ""),
+                    "available": (
+                        f"solidcraft-web-{version}.zip" in asset_names
+                        and "SHA256SUMS.txt" in asset_names
+                    ),
+                }
+            )
+        if len(releases) < 100:
+            break
+        page += 1
+    return builds
+
+
+def release_builds():
+    with RELEASES_CACHE_LOCK:
+        if RELEASES_CACHE["builds"] is not None and RELEASES_CACHE["expires_at"] > time.monotonic():
+            return RELEASES_CACHE["builds"]
+        builds = load_release_builds()
+        RELEASES_CACHE["builds"] = builds
+        RELEASES_CACHE["expires_at"] = time.monotonic() + RELEASES_CACHE_TTL
+        return builds
+
+
+def release_catalog():
+    return {"active_version": active_version(), "builds": release_builds()}
+
+
 def install(version):
     with UPDATE_LOCK:
         resolved_version, web_asset, checksum_asset = release_for(version)
@@ -233,16 +305,21 @@ class UpdateHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        if not self.authorized():
+        path = urlsplit(self.path).path
+        if path == "/_admin/releases":
+            try:
+                self.send_json(200, release_catalog())
+            except UpdateError as error:
+                self.send_json(502, {"error": str(error)})
             return
-        if urlsplit(self.path).path != "/_admin/status":
+        if path != "/_admin/status":
             self.send_json(404, {"error": "not found"})
+            return
+        if not self.authorized():
             return
         self.send_json(200, {"version": active_version()})
 
     def do_POST(self):
-        if not self.authorized():
-            return
         parsed = urlsplit(self.path)
         if parsed.path != "/_admin/update":
             self.send_json(404, {"error": "not found"})

@@ -6,6 +6,7 @@ RUN apk add --no-cache python3 ca-certificates \
  && chown -R 101:101 /app /data
 
 COPY --chown=101:101 updater.py /app/updater.py
+COPY --chown=101:101 release-picker/ /opt/solidcraft/release-picker/
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chown=101:101 .build/site/ /opt/solidcraft/baked-release/
 

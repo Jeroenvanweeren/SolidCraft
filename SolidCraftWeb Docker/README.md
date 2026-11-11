@@ -1,8 +1,8 @@
 # SolidCraft web container
 
-This folder runs the official SolidCraft browser release in nginx and adds a small, authenticated
-endpoint for installing published web releases. It does not build or modify the SolidCraft source
-repository. Release ZIP files are checked against the release's `SHA256SUMS.txt` before activation.
+This folder runs the official SolidCraft browser release in nginx and adds a release browser for
+installing published web releases. It does not build or modify the SolidCraft source repository.
+Release ZIP files are checked against the release's `SHA256SUMS.txt` before activation.
 
 ## Start
 
@@ -42,9 +42,11 @@ git tag -a v1.2.3 -m "Release v1.2.3"
 git push origin v1.2.3
 ```
 
-Open `http://localhost:8080/`. For a remote deployment, put HTTPS in front of the container;
-SolidCraft needs a secure browser context to save designs. Do not expose the update endpoint over
-an untrusted plain-HTTP network.
+Open `http://localhost:8080/` for SolidCraft and `http://localhost:8080/releases/` to browse and
+select a published build. For a remote deployment, put HTTPS in front of the container; SolidCraft
+needs a secure browser context to save designs. The release page and update action are public:
+anyone who can reach the container can activate any published stable or prerelease build. Do not
+expose the container to an untrusted network unless this is intended.
 
 ## Deploy latest and restart
 
@@ -65,9 +67,13 @@ rebuild fails after stopping the service, it attempts to restart the previous co
 `solidcraft-data` volume remains authoritative at runtime, so rebuilding the image does not discard
 the installed release.
 
-## Update API
+## Release browser and update API
 
-The API is on the same origin as the app and requires the configured bearer token.
+The release browser fetches its data from `GET /_admin/releases`. The server retrieves published
+releases; builds without both the web bundle and checksum asset remain visible but cannot be
+selected. Search, filtering, and sorting run locally in the browser. The page uses the existing
+`POST /_admin/update` endpoint to publish a selected build. This action is public and does not
+require the bearer token. Any `Authorization` header shown in the examples below is optional.
 
 ```sh
 curl -X POST \
@@ -84,9 +90,10 @@ curl -X POST \
   'http://localhost:8080/_admin/update?version=0.30.1'
 ```
 
-Versions may include the leading `v`; an explicitly requested published release candidate is also
-accepted, for example `version=0.31.0-rc.2`. The current version can be read with the authenticated
-`GET /_admin/status` endpoint. A successful update returns JSON with `version` and `updated` fields.
+Versions may include the leading `v`; published release candidates and nightly builds are also
+available, for example `version=0.31.0-rc.2`. The current version is included in the public release
+catalog; the separate `GET /_admin/status` endpoint remains protected by the configured bearer
+token. A successful update returns JSON with `version` and `updated` fields.
 
 The update is downloaded to a temporary directory, checksum-verified, safely extracted, and made
 active by atomically replacing a symlink. An unsuccessful update leaves the current version in
@@ -96,7 +103,7 @@ check GitHub.
 ## Configuration
 
 - `SOLIDCRAFT_PORT`: host port, default `8080`.
-- `SOLIDCRAFT_UPDATE_TOKEN`: required bearer token, at least 32 characters.
+- `SOLIDCRAFT_UPDATE_TOKEN`: required bearer token for `GET /_admin/status`, at least 32 characters.
 - `solidcraft-data`: named volume containing installed releases and the active-version symlink.
 
 The API listens only on the container's loopback interface; nginx proxies `/_admin/` to it. The
